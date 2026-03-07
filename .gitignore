@@ -1,0 +1,10 @@
+*.exe
+*.obj
+.vscode/
+other/
+ASD/
+WEB/
+venv/
+*.txt
+!requirements.txt
+*.csv
