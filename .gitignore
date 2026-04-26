@@ -4,6 +4,7 @@
 other/
 ASD/
 WEB/
+SysIng/
 venv/
 *.txt
 !requirements.txt
