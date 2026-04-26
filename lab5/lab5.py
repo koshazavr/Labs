@@ -3,18 +3,46 @@ import glob
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+import urllib.request
+from datetime import datetime
 
 st.set_page_config(page_title="NOAA Analysis", layout="wide")
 
 st.title("Laboratory Work No. 5: NOAA Data Analysis")
-st.markdown("\n**Objective:** Interactive visualization of VCI, TCI, VHI time series across regions of Ukraine.")
+st.markdown("**Objective:** Interactive visualization of VCI, TCI, VHI time series across regions of Ukraine.")
 st.divider()
+
+def download_vhi_data(folder="data"):
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    now = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    with st.spinner("Checking and downloading missing NOAA data... Please wait."):
+        for province_id in range(1, 28):
+            existing_files = [f for f in os.listdir(folder) if f.startswith(f"vhi_id_{province_id}_")]
+            
+            if existing_files:
+                continue
+                
+            url = f"https://www.star.nesdis.noaa.gov/smcd/emb/vci/VH/get_TS_admin.php?country=UKR&provinceID={province_id}&year1=1981&year2=2024&type=Mean"
+            filename = os.path.join(folder, f"vhi_id_{province_id}_{now}.csv")
+            
+            try:
+                urllib.request.urlretrieve(url, filename)
+            except Exception as e:
+                st.error(f"Error downloading ID {province_id}: {e}")
+
+download_vhi_data()
 
 @st.cache_data
 def load_data():
     path = 'data/'
     all_files = glob.glob(os.path.join(path, "*.csv"))
     
+    if not all_files:
+        return pd.DataFrame()
+
     regions_dict = {
         1: 'Vinnytsia', 2: 'Volyn', 3: 'Dnipropetrovsk', 4: 'Donetsk', 
         5: 'Zhytomyr', 6: 'Zakarpattia', 7: 'Zaporizhzhia', 8: 'Ivano-Frankivsk', 
@@ -31,7 +59,7 @@ def load_data():
         filename = os.path.basename(file)
         try:
             region_id = int(filename.split('_')[2])
-        except ValueError:
+        except (ValueError, IndexError):
             continue 
             
         df = pd.read_csv(
@@ -46,10 +74,13 @@ def load_data():
         df['Region'] = regions_dict.get(region_id, f"Region {region_id}")
         
         df = df.dropna()
-        df = df[df['VHI'] != -1]
+        df = df[df['VHI'] != -1] 
         
         df_list.append(df)
         
+    if not df_list:
+        return pd.DataFrame()
+
     full_df = pd.concat(df_list, ignore_index=True)
     
     full_df['Year'] = full_df['Year'].astype(int)
@@ -62,11 +93,15 @@ def load_data():
 
 df = load_data()
 
+if df.empty:
+    st.error("No data available. Please check your internet connection or the 'data' folder.")
+    st.stop()
+
 defaults = {
     'metric': 'VHI',
-    'region': df['Region'].unique()[0] if not df.empty else 'Kyiv City',
+    'region': df['Region'].unique()[0],
     'weeks': (1, 52),
-    'years': (int(df['Year'].min()), int(df['Year'].max())) if not df.empty else (2000, 2024),
+    'years': (int(df['Year'].min()), int(df['Year'].max())),
     'sort_asc': False,
     'sort_desc': False
 }
@@ -126,10 +161,10 @@ with col2:
         st.plotly_chart(fig1, use_container_width=True)
         
     with tab3:
-        st.subheader(f"Comparison of average {st.session_state.metric} for the selected period")
-        df_comp = df_period.groupby('Region')[st.session_state.metric].mean().reset_index()
+        st.subheader(f"Comparison of average {st.session_state.metric} across regions")
+        df_comp = df_period.groupby('Region')[st.session_state.metric].mean().reset_index()     
         fig2 = px.bar(df_comp, x='Region', y=st.session_state.metric, 
-                      title=f"Average {st.session_state.metric} across all regions")
+                      title=f"Average {st.session_state.metric} for period {st.session_state.years[0]}-{st.session_state.years[1]}")
         
         colors = ['red' if r == st.session_state.region else '#636efa' for r in df_comp['Region']]
         fig2.update_traces(marker_color=colors)
