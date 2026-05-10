@@ -1,0 +1,14 @@
+
+bin/
+obj/
+opencv_lab
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+Makefile
+*.prototxt
+*.caffemodel
+.DS_Store
+Thumbs.db
+*.swp

@@ -1,0 +1,16 @@
+build/
+bin/
+obj/
+
+.vscode/
+.idea/
+*.swp
+*.save
+
+*.o
+*.a
+*.so
+opencv_lab
+
+.DS_Store
+Thumbs.db
